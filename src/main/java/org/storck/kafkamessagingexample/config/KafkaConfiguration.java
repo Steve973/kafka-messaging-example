@@ -1,8 +1,10 @@
 package org.storck.kafkamessagingexample.config;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.StreamsConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,8 +16,10 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.storck.kafkamessagingexample.model.SimpleQuery;
 import org.storck.kafkamessagingexample.model.SimpleResponse;
+import org.storck.kafkamessagingexample.service.SimpleResponseSerde;
 
 import java.util.Map;
+import java.util.Properties;
 
 import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROTOTYPE;
 
@@ -25,8 +29,19 @@ public class KafkaConfiguration {
 
     private final String bootstrapAddress;
 
-    public KafkaConfiguration(@Value(value = "${kafka.bootstrapAddress}") String bootstrapAddress) {
+    public KafkaConfiguration(@Value(value = "${spring.kafka.bootstrap-servers}") String bootstrapAddress) {
         this.bootstrapAddress = bootstrapAddress;
+        System.err.println("########## bootstrap address: " + bootstrapAddress);
+    }
+
+    @Bean
+    public Properties streamProperties() {
+        Properties streamProperties = new Properties();
+        streamProperties.put(StreamsConfig.APPLICATION_ID_CONFIG, "kafka-messaging-example");
+        streamProperties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
+        streamProperties.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.StringSerde.class);
+        streamProperties.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerializer.class);
+        return streamProperties;
     }
 
     @Bean

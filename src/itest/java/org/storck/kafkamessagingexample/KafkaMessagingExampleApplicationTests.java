@@ -8,6 +8,6 @@ class KafkaMessagingExampleApplicationTests {
 
     @Test
     void contextLoads() {
+        // This loads the Spring context, and it will pass if everything wires up correctly.
     }
-
 }

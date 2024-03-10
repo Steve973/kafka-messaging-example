@@ -1,14 +1,12 @@
 spring:
   kafka:
+#    bootstrap-servers: localhost:9999
     consumer:
-      bootstrap-servers: localhost:9092  # Adjust server address if needed
-      group-id: group-id  # Use your group id
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    producer:
-      bootstrap-servers: localhost:9092  # Adjust server address if needed
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-kafka:
-  bootstrapAddress: localhost:9092
+#      bootstrap-servers: localhost:9999
+      group-id: kafka-messaging-example
+#    producer:
+#      bootstrap-servers: localhost:9999
+#    streams:
+#      bootstrap-servers: localhost:9999
+    admin:
+      auto-create: true
