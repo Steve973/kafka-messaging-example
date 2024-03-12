@@ -1,12 +1,13 @@
-spring:
-  kafka:
+#spring:
+#  kafka:
 #    bootstrap-servers: localhost:9999
-    consumer:
+#    consumer:
 #      bootstrap-servers: localhost:9999
-      group-id: kafka-messaging-example
-#    producer:
+#      group-id: consumer-group
+    #    producer:
 #      bootstrap-servers: localhost:9999
 #    streams:
 #      bootstrap-servers: localhost:9999
-    admin:
-      auto-create: true
+logging:
+  level:
+    org.apache.kafka: INFO

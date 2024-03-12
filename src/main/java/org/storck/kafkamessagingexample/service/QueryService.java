@@ -22,8 +22,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import static org.storck.kafkamessagingexample.config.KafkaConfiguration.CONSUMER_GROUP_NAME;
+import static org.storck.kafkamessagingexample.config.KafkaConfiguration.QUERY_TOPIC_NAME;
+import static org.storck.kafkamessagingexample.config.KafkaConfiguration.RESULT_TOPIC_NAME;
 
 /**
  * Handles querying and processing of {@link SimpleQuery}s and {@link SimpleResponse}s using Kafka.
@@ -40,62 +43,26 @@ public class QueryService {
 
     private final StreamsBuilder streamsBuilder;
 
-    private final Properties streamProperties;
+    private final Properties streamsProperties;
 
-    /**
-     * Creates a new instance of QueryService.
-     *
-     * @param simpleQueryKafkaTemplate    the KafkaTemplate for sending SimpleQuery messages
-     * @param simpleResponseKafkaTemplate the KafkaTemplate for sending SimpleResponse messages
-     * @param simpleResponseSerde         the serde for serializing/deserializing SimpleResponse objects
-     * @param streamsBuilder              the StreamsBuilder for building Kafka Streams topology
-     */
     public QueryService(KafkaTemplate<String, SimpleQuery> simpleQueryKafkaTemplate,
                         KafkaTemplate<String, SimpleResponse> simpleResponseKafkaTemplate,
                         SimpleResponseSerde simpleResponseSerde,
                         StreamsBuilder streamsBuilder,
-                        Properties streamProperties) {
+                        Properties streamsProperties) {
         this.simpleQueryKafkaTemplate = simpleQueryKafkaTemplate;
         this.simpleResponseKafkaTemplate = simpleResponseKafkaTemplate;
         this.simpleResponseSerde = simpleResponseSerde;
         this.streamsBuilder = streamsBuilder;
-        this.streamProperties = streamProperties;
+        this.streamsProperties = streamsProperties;
     }
 
-    /**
-     * Creates a KStream that reads from the input topic associated with the given queryId.
-     *
-     * @param queryId The id of the query.
-     * @return The KStream object representing the input topic stream.
-     */
-    public KStream<String, SimpleResponse> createInputTopicStream(String queryId) {
-        return streamsBuilder.stream("query-response-" + queryId, Consumed.with(Serdes.String(), simpleResponseSerde));
-    }
-
-    /**
-     * Filters the input stream by queryId and returns a new stream containing only the matching records.
-     *
-     * @param queryId          The queryId to filter the stream by.
-     * @param inputTopicStream The input stream to be filtered.
-     * @return A new stream containing only the records matching the given queryId.
-     */
-    public KStream<String, SimpleResponse> filterStreamByQueryId(String queryId, KStream<String, SimpleResponse> inputTopicStream) {
-        return inputTopicStream.filter((key, value) -> value.getId().equals(queryId));
-    }
-
-    /**
-     * Processes a local query, sending it to a Kafka topic and collecting responses.
-     *
-     * @param query The query to be processed.
-     * @return A list of strings representing the combined result of processing the query and collecting responses.
-     * @throws ExecutionException   If an exception occurs during the execution of the method.
-     * @throws InterruptedException If the thread is interrupted while waiting for the result.
-     */
-    public List<String> processLocalQuery(String query) throws ExecutionException, InterruptedException {
+    public List<String> processLocalQuery(String query, Duration timeout) throws Exception {
         SimpleQuery simpleQuery = SimpleQuery.builder()
                 .id(UUID.randomUUID().toString())
-                .query(query + "-remote")
+                .query(query)
                 .build();
+
         CompletableFuture<SendResult<String, SimpleQuery>> sendFuture = simpleQueryKafkaTemplate.send("query-topic", simpleQuery);
 
         CompletableFuture<List<String>> localProcessingFuture = sendFuture.thenApplyAsync(sendResult -> {
@@ -109,7 +76,7 @@ public class QueryService {
         CompletableFuture<List<String>> remoteProcessingFuture = sendFuture.thenCompose(sendResult ->
                 CompletableFuture.supplyAsync(() -> {
                     try {
-                        return collectResponses(simpleQuery.getId(), Duration.of(5, ChronoUnit.SECONDS));
+                        return collectResponses(simpleQuery.getId(), timeout);
                     } catch (Exception e) {
                         throw new CompletionException("Error collecting responses", e);
                     }
@@ -121,72 +88,57 @@ public class QueryService {
             combined.addAll(remoteResponses);
             return combined;
         }).exceptionally(ex -> {
-            // Handle exceptions here
             throw new IllegalStateException("Failed to process local query", ex);
         }).get();
+
+
+
+
+//        simpleQueryKafkaTemplate.send(QUERY_TOPIC_NAME, "query", simpleQuery);
+//        Thread.sleep(500);
+//
+//        List<String> localResults = processQuery(query);
+//        List<String> remoteResults = collectResponses(simpleQuery.getId(), timeout);
+//
+//        List<String> combinedResults = new ArrayList<>(localResults);
+//        combinedResults.addAll(remoteResults);
+//
+//        return combinedResults;
     }
 
+    private List<String> collectResponses(String queryId, Duration timeout) throws InterruptedException {
+        List<String> responses = new ArrayList<>();
+        streamsBuilder
+                .stream(RESULT_TOPIC_NAME, Consumed.with(Serdes.String(), simpleResponseSerde))
+                .filter((key, value) -> value.getId().equals(queryId))
+                .foreach((key, value) -> responses.addAll(value.getResults()));
+        CountDownLatch latch = new CountDownLatch(1);
+        try (KafkaStreams streams = new KafkaStreams(streamsBuilder.build(), streamsProperties)) {
+            streams.start();
+            latch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        return responses;
+    }
 
-    /**
-     * Listens for queries and processes them.
-     *
-     * @param simpleQuery the SimpleQuery object representing the received query
-     */
-    @KafkaListener(topics = "query-topic", groupId = "kafka-messaging-example")
+    @KafkaListener(topics = QUERY_TOPIC_NAME, groupId = CONSUMER_GROUP_NAME,
+            containerFactory = "simpleQueryKafkaListenerContainerFactory", autoStartup = "true")
     public void listenForQueries(SimpleQuery simpleQuery) {
         SimpleResponse response = SimpleResponse.builder()
                 .id(simpleQuery.getId())
                 .results(processQuery(simpleQuery.getQuery()))
                 .build();
-        simpleResponseKafkaTemplate.send("result-topic", response);
+        simpleResponseKafkaTemplate.send(RESULT_TOPIC_NAME, "result", response);
     }
 
-    /**
-     * Processes the given query and returns a list of formatted system properties.
-     *
-     * @param query the query to process
-     * @return a list of formatted system properties
-     */
     private List<String> processQuery(String query) {
         log.info("Received query: {}", query);
-        return List.of("""
-                query: %s
-                OS Name: %s
-                OS Version: %s
-                OS Architecture: %s
-                User Name: %s
-                User Home: %s
-                """.formatted(query, System.getProperty("os.name"), System.getProperty("os.version"),
-                System.getProperty("os.arch"), System.getProperty("user.name"), System.getProperty("user.home")));
-    }
-
-    /**
-     * Collects responses from a Kafka stream for a given query ID within a specified timeout duration.
-     *
-     * @param queryId the ID of the query
-     * @param timeout the timeout duration to collect responses
-     * @return a list of collected responses
-     */
-    public List<String> collectResponses(String queryId, Duration timeout) {
-        long startTime = System.currentTimeMillis();
-        List<String> responses = new ArrayList<>();
-        KStream<String, SimpleResponse> inputStream = createInputTopicStream(queryId);
-        KStream<String, SimpleResponse> filteredStream = filterStreamByQueryId(queryId, inputStream);
-        CountDownLatch latch = new CountDownLatch(1);
-        filteredStream.peek((key, value) -> {
-            responses.addAll(value.getResults());
-            if (System.currentTimeMillis() - startTime >= timeout.toMillis()) {
-                latch.countDown();
-            }
-        });
-        try (KafkaStreams streams = new KafkaStreams(streamsBuilder.build(), streamProperties)) {
-            streams.start();
-            boolean latchResult = latch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            log.info("Processing of query with id '{}' complete by duration timeout: {}", queryId, latchResult);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Waiting interrupted", e);
-        }
-        return responses;
+        return List.of(
+                "query: " + query,
+                "OS Name: " + System.getProperty("os.name"),
+                "OS Version: " + System.getProperty("os.version"),
+                "OS Architecture: " + System.getProperty("os.arch"),
+                "User Name: " + System.getProperty("user.name"),
+                "User Home: " + System.getProperty("user.home")
+        );
     }
 }

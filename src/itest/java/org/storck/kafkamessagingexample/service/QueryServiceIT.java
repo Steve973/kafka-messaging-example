@@ -1,6 +1,5 @@
 package org.storck.kafkamessagingexample.service;
 
-import com.github.dockerjava.api.model.Capability;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,18 +13,14 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.storck.kafkamessagingexample.config.KafkaConfiguration;
 import org.storck.kafkamessagingexample.model.SimpleQuery;
 import org.storck.kafkamessagingexample.model.SimpleResponse;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -33,37 +28,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class QueryServiceIT {
 
-    private static final int REDPANDA_PORT = 9092;
-
-    private static final int REDPANDA_ADMIN_PORT = 9644;
-
-    private static final int SCHEMA_REGISTRY_PORT = 8081;
-
-    private static final int REST_PROXY_PORT = 8082;
-
     static final String REDPANDA_TAG = "docker.redpanda.com/redpandadata/redpanda:v23.3.6";
 
     @Container
+//    @ServiceConnection
     static RedpandaContainer redpandaContainer =
-            new RedpandaContainer(DockerImageName.parse(REDPANDA_TAG))
-                    .waitingFor(new HostPortWaitStrategy())
-                    .waitingFor(Wait.forLogMessage(".*Successfully started Redpanda!.*", 1))
-                    .withExposedPorts(REDPANDA_PORT, REDPANDA_ADMIN_PORT, SCHEMA_REGISTRY_PORT, REST_PROXY_PORT)
-                    .withCreateContainerCmdModifier(cmd -> {
-                        cmd.withEntrypoint("/entrypoint-tc.sh");
-                        cmd.withUser("root:root");
-                    })
-                    .withCopyFileToContainer(
-                            MountableFile.forClasspathResource("testcontainers/entrypoint-tc.sh", 744),
-                            "/entrypoint-tc.sh")
-                    .withCommand("redpanda", "start", "--mode=dev-container", "--smp=1", "--memory=1G");
+            new RedpandaContainer(DockerImageName.parse(REDPANDA_TAG));
 
     @DynamicPropertySource
     static void kafkaProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.kafka.bootstrap-servers", redpandaContainer::getBootstrapServers);
-//        registry.add("spring.kafka.consumer.bootstrap-servers", redpandaContainer::getBootstrapServers);
-//        registry.add("spring.kafka.producer.bootstrap-servers", redpandaContainer::getBootstrapServers);
-//        registry.add("spring.kafka.streams.bootstrap-servers", redpandaContainer::getBootstrapServers);
+        registry.add("spring.kafka.consumer.bootstrap-servers", redpandaContainer::getBootstrapServers);
+        registry.add("spring.kafka.producer.bootstrap-servers", redpandaContainer::getBootstrapServers);
+        registry.add("spring.kafka.streams.bootstrap-servers", redpandaContainer::getBootstrapServers);
     }
 
     @Autowired
@@ -73,14 +50,14 @@ class QueryServiceIT {
     QueryService queryService2;
 
     @Test
-    void myTest() throws ExecutionException, InterruptedException {
-        List<String> results = queryService1.processLocalQuery("test_query");
+    void myTest() throws Exception {
+        List<String> results = queryService1.processLocalQuery("test_query", Duration.ofSeconds(5));
         assertNotNull(results);
-        System.err.println("Results: " + String.join(", \n", results));
+        System.err.println("Results: \n" + String.join(", \n", results));
     }
 
     @TestConfiguration
-    @Import(KafkaConfiguration.class)
+    @Import({KafkaConfiguration.class})
     static class TestConfig {
 
         @Autowired
@@ -96,16 +73,16 @@ class QueryServiceIT {
         private StreamsBuilder streamsBuilder;
 
         @Autowired
-        private Properties streamProperties;
+        private Properties streamsProperties;
 
         @Bean
         public QueryService queryService1() {
-            return new QueryService(simpleQueryKafkaTemplate, simpleResponseKafkaTemplate, simpleResponseSerde, streamsBuilder, streamProperties);
+            return new QueryService(simpleQueryKafkaTemplate, simpleResponseKafkaTemplate, simpleResponseSerde, streamsBuilder, streamsProperties);
         }
 
         @Bean
         public QueryService queryService2() {
-            return new QueryService(simpleQueryKafkaTemplate, simpleResponseKafkaTemplate, simpleResponseSerde, streamsBuilder, streamProperties);
+            return new QueryService(simpleQueryKafkaTemplate, simpleResponseKafkaTemplate, simpleResponseSerde, streamsBuilder, streamsProperties);
         }
     }
 }
