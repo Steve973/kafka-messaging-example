@@ -3,7 +3,6 @@ package org.storck.kafkamessagingexample.config;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.CooperativeStickyAssignor;
-import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -35,14 +34,15 @@ import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROT
 @EnableKafka
 public class KafkaConfiguration {
 
-    public static final String CONSUMER_GROUP_NAME = "consumer-group";
-
     public static final String QUERY_TOPIC_NAME = "query-topic";
 
     public static final String RESULT_TOPIC_NAME = "result-topic";
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
+
+    @Value("${spring.kafka.consumer.group-id}")
+    private String kafkaConsumerGroupId;
 
     @Bean
     public Properties streamsProperties() {
@@ -91,7 +91,7 @@ public class KafkaConfiguration {
         return new DefaultKafkaConsumerFactory<>(
                 Map.of(
                         ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-                        ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
+                        ConsumerConfig.GROUP_ID_CONFIG, kafkaConsumerGroupId,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true,
                         ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 15000,
@@ -107,7 +107,7 @@ public class KafkaConfiguration {
         return new DefaultKafkaConsumerFactory<>(
                 Map.of(
                         ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-                        ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
+                        ConsumerConfig.GROUP_ID_CONFIG, kafkaConsumerGroupId,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true,
                         ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 15000,

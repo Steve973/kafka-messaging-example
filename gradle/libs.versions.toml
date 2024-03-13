@@ -1,4 +1,5 @@
 [versions]
+guava = "33.0.0-jre"
 springBoot = "3.2.3"
 springDoc = "2.3.0"
 kafkaVersion = "3.6.1"
@@ -8,6 +9,7 @@ junit = "5.10.2"
 testcontainers = "1.19.7"
 
 [libraries]
+googleGuava = { module = "com.google.guava:guava", version.ref = "guava" }
 springBootStarterWeb = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
 springBootStarterTest = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
 kafkaStreams = { module = "org.apache.kafka:kafka-streams", version.ref = "kafkaVersion" }

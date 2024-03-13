@@ -28,10 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class QueryServiceIT {
 
-    static final String REDPANDA_TAG = "docker.redpanda.com/redpandadata/redpanda:v23.3.6";
+    static final String REDPANDA_TAG = "redpandadata/redpanda:v23.3.6";
 
     @Container
-//    @ServiceConnection
     static RedpandaContainer redpandaContainer =
             new RedpandaContainer(DockerImageName.parse(REDPANDA_TAG));
 

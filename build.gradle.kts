@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.springKafka)
     implementation(libs.springdocOpenapiStarterWebmvcUi)
     implementation(libs.springKafka)
+    implementation(libs.googleGuava)
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
     testImplementation(libs.springBootStarterTest)

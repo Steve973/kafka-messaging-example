@@ -1,13 +1,4 @@
-#spring:
-#  kafka:
-#    bootstrap-servers: localhost:9999
-#    consumer:
-#      bootstrap-servers: localhost:9999
-#      group-id: consumer-group
-    #    producer:
-#      bootstrap-servers: localhost:9999
-#    streams:
-#      bootstrap-servers: localhost:9999
-logging:
-  level:
-    org.apache.kafka: INFO
+spring:
+  kafka:
+    consumer:
+      group-id: ${CONSUMER_GROUP_ID:#{T(java.util.UUID).randomUUID().toString()}}
