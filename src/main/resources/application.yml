@@ -2,7 +2,7 @@ spring:
   kafka:
     consumer:
       group-id: ${CONSUMER_GROUP_ID:#{T(java.util.UUID).randomUUID().toString()}}
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: broker:9092
   ssl:
     bundle:
       jks:
@@ -10,7 +10,7 @@ spring:
           key:
             alias: "myalias"
           keystore:
-            location: "classpath:unified.p12"
+            location: "classpath:keystore.p12"
             password: "changeme"
             type: "PKCS12"
           truststore:
@@ -22,9 +22,9 @@ server:
     bundle: "server-ssl-bundle"
     client-auth: need
     enabled: true
-jwt:
-  secret: "U29tZTFDcmF6eTJTZWNyZXQzU3RyaW5nNA=="
 logging:
   level:
     org.apache.kafka: error
-    org.springframework.security: DEBUG
+    org.springframework.security: debug
+springdoc:
+  show-actuator: true

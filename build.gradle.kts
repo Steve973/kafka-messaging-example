@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootBuildImage
+import org.springframework.boot.gradle.tasks.bundling.BootJar
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
@@ -39,26 +41,29 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.springBootStarterSecurity)
-    implementation(libs.springSecurityOauth2Jose)
-    implementation(libs.springBootStarterWeb)
-    implementation(libs.springBootStarterCache)
-    implementation(libs.caffeineCache)
-    implementation(libs.kafkaStreams)
-    implementation(libs.springKafka)
-    implementation(libs.springdocOpenapiStarterWebmvcUi)
-    implementation(libs.springKafka)
-    implementation(libs.googleGuava)
+    implementation(libs.caffeine.cache)
+    implementation(libs.google.guava)
+    implementation(libs.kafka.streams)
+    implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.cache)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.kafka)
+    implementation(libs.spring.kafka)
+    implementation(libs.spring.security.oauth2.jose)
+    implementation(libs.springdoc.openapi.starter.webmvc.ui)
+
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
-    testImplementation(libs.springBootStarterTest)
-    testImplementation(libs.junitJupiterApi)
-    testImplementation(libs.junitJupiterEngine)
-    testImplementation(libs.junitJupiterParams)
-    testImplementation(libs.springBootTestcontainers)
+
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.engine)
+    testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers)
-    testImplementation(libs.testcontainersJunitJupiter)
-    testImplementation(libs.testcontainersRedpanda)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.redpanda)
 }
 
 tasks.withType<Test> {
@@ -73,131 +78,106 @@ val itest by tasks.registering(Test::class) {
     dependsOn("itestClasses")
 }
 
-val defaultTargetDir = layout.buildDirectory.get().asFile.absolutePath + "/resources/main"
-val certDir = layout.buildDirectory.get().asFile.absolutePath + "/generated/certs"
-
-tasks.register("createCertDirs") {
-    group = "certificate"
-    description = "Create directories for certificate generation"
-    if (mkdir(certDir).exists()) {
-        println("Created $certDir")
-    }
-    if (mkdir(defaultTargetDir).exists()) {
-        println("Created $defaultTargetDir")
-    }
-}
-
-val generateKeystore by tasks.registering(Exec::class) {
-    group = "certificate"
-    description = "Generates a keystore with a self-signed certificate in PKCS12 format"
-    outputs.dir(certDir)
-    dependsOn("createCertDirs")
-    commandLine("keytool", "-genkeypair",
-        "-alias", "myalias",
-        "-keyalg", "RSA",
-        "-keysize", "4096",
-        "-storetype", "PKCS12",
-        "-keystore", "$certDir/keystore.p12",
-        "-validity", "3650",
-        "-storepass", "changeme",
-        "-keypass", "changeme",
-        "-dname", "CN=localhost, OU=Test, O=Test, L=Test, ST=Test, C=GB",
-        "-noprompt")
-    doLast {
-        val targetFile = File("$defaultTargetDir/keystore.p12")
-        Files.copy(Paths.get("$certDir/keystore.p12"), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        project.properties["certTargetDir"]?.toString()?.let {
-            val customTargetFile = File("$it/keystore.p12")
-            Files.copy(Paths.get("$certDir/keystore.p12"), customTargetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
-    }
-}
-
-val exportCertificate by tasks.registering(Exec::class) {
-    group = "certificate"
-    description = "Exports certificate from the keystore"
-    dependsOn("generateKeystore")
-    commandLine("keytool", "-exportcert",
-        "-alias", "myalias",
-        "-keystore", "$certDir/keystore.p12",
-        "-storepass", "changeme",
-        "-file", "$certDir/mycert.cer",
-        "-noprompt")
-}
-
-val generateTruststore by tasks.registering(Exec::class) {
-    group = "certificate"
-    description = "Generates a truststore from the keystore"
-    outputs.dir(certDir)
-    dependsOn("exportCertificate")
-    commandLine("keytool", "-importcert",
-        "-file", "$certDir/mycert.cer",
-        "-alias", "myTrustAlias",
-        "-keystore", "$certDir/truststore.p12",
-        "-storepass", "changeme",
-        "-noprompt")
-    doLast {
-        val targetFile = File("$defaultTargetDir/truststore.p12")
-        Files.copy(Paths.get("$certDir/truststore.p12"), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        project.properties["certTargetDir"]?.toString()?.let {
-            val customTargetFile = File("$it/truststore.p12")
-            Files.copy(Paths.get("$certDir/truststore.p12"), customTargetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
-    }
-}
-
-val addKeystoreToUnifiedStore by tasks.registering(Exec::class) {
-    group = "certificate"
-    description = "Adds the Keystore to the Unified store"
-    outputs.dir(certDir)
-    dependsOn("generateTruststore")
-    commandLine("keytool", "-importkeystore",
-        "-srckeystore", "$certDir/keystore.p12",
-        "-destkeystore", "$certDir/unified.p12",
-        "-srcstoretype", "PKCS12",
-        "-deststoretype", "PKCS12",
-        "-srcstorepass", "changeme",
-        "-deststorepass", "changeme",
-        "-noprompt")
-}
-
-val addTrustStoreToUnifiedStore by tasks.registering(Exec::class) {
-    group = "certificate"
-    description = "Adds the Truststore to the Unified store"
-    outputs.dir(certDir)
-    dependsOn("addKeystoreToUnifiedStore")
-    commandLine("keytool", "-importkeystore",
-        "-srckeystore", "$certDir/truststore.p12",
-        "-destkeystore", "$certDir/unified.p12",
-        "-srcstoretype", "PKCS12",
-        "-deststoretype", "PKCS12",
-        "-srcstorepass", "changeme",
-        "-deststorepass", "changeme",
-        "-noprompt")
-    doLast {
-        val targetFile = File("$defaultTargetDir/unified.p12")
-        Files.copy(Paths.get("$certDir/unified.p12"), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        project.properties["certTargetDir"]?.toString()?.let {
-            val customTargetFile = File("$it/unified.p12")
-            Files.copy(Paths.get("$certDir/unified.p12"), customTargetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
-    }
-}
-
-tasks.register("createStores") {
+val createStores by tasks.registering {
     group = "certificate"
     description = "Creates a keystore and truststore and a unified store"
-    dependsOn("addTrustStoreToUnifiedStore")
+
+    val buildDirPath = layout.buildDirectory.get().asFile.absolutePath
+    val certDir = "$buildDirPath/generated/certs"
+    val defaultTargetDir = "$buildDirPath/resources/main"
+    outputs.dirs(certDir, defaultTargetDir)
+
+    doLast {
+        project.exec {
+            isIgnoreExitValue = true
+            commandLine(
+                "keytool", "-genkeypair",
+                "-alias", "myalias",
+                "-keyalg", "RSA",
+                "-keysize", "4096",
+                "-storetype", "PKCS12",
+                "-keystore", "$certDir/keystore.p12",
+                "-validity", "3650",
+                "-storepass", "changeme",
+                "-keypass", "changeme",
+                "-dname", "CN=localhost, OU=Test, O=Test, L=Test, ST=Test, C=GB",
+                "-noprompt"
+            )
+        }
+
+        project.exec {
+            isIgnoreExitValue = true
+            commandLine(
+                "keytool", "-exportcert",
+                "-alias", "myalias",
+                "-keystore", "$certDir/keystore.p12",
+                "-storepass", "changeme",
+                "-file", "$certDir/mycert.cer",
+                "-noprompt"
+            )
+        }
+
+        project.exec {
+            isIgnoreExitValue = true
+            commandLine(
+                "keytool", "-importcert",
+                "-file", "$certDir/mycert.cer",
+                "-alias", "myTrustAlias",
+                "-keystore", "$certDir/truststore.p12",
+                "-storepass", "changeme",
+                "-noprompt"
+            )
+        }
+
+        listOf("keystore.p12", "truststore.p12").forEach { storeName ->
+            val defaultTargetFile = File("$defaultTargetDir/$storeName")
+            Files.copy(
+                Paths.get("$certDir/$storeName"),
+                defaultTargetFile.toPath(),
+                StandardCopyOption.REPLACE_EXISTING
+            )
+        }
+
+        project.properties["certTargetDir"]?.toString()?.let { targetDir ->
+            listOf("keystore.p12", "truststore.p12").forEach { storeName ->
+                val customTargetFile = File("$targetDir/$storeName")
+                Files.copy(
+                    Paths.get("$certDir/$storeName"),
+                    customTargetFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING
+                )
+            }
+        }
+    }
 }
 
-tasks.named("bootJar") {
+tasks.getByName<BootJar>("bootJar") {
     dependsOn("createStores")
+    layered {
+        enabled.set(true)
+        includeLayerTools.set(true)
+    }
 }
 
-tasks.named("bootRun") {
-    dependsOn("createStores")
+tasks.getByName<Task>("resolveMainClassName") {
+    mustRunAfter("createStores")
 }
 
-tasks.withType(JavaExec::class) {
-    jvmArgs("-Djavax.net.debug=ssl:handshake:verbose:keymanager:trustmanager", "-Djava.security.debug=access:stack")
+tasks.getByName<BootBuildImage>("bootBuildImage") {
+    imageName.set("docker.io/library/${project.name}")
+    environment.set(
+        environment.get() +
+                mapOf(
+                    "BPE_DELIM_JAVA_TOOL_OPTIONS" to " ",
+                    "BPE_APPEND_JAVA_TOOL_OPTIONS" to "--add-opens=java.base/sun.net=ALL-UNNAMED",
+                    "BP_HEALTH_CHECKER_ENABLED" to "true",
+                    "THC_PATH" to "/actuator/health"
+                )
+    )
+    buildpacks.set(
+        listOf(
+            "urn:cnb:builder:paketo-buildpacks/java",
+            "gcr.io/paketo-buildpacks/health-checker:latest"
+        )
+    )
 }

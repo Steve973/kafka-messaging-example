@@ -1,20 +1,14 @@
 package org.storck.kafkamessagingexample.auth;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -31,12 +25,17 @@ public class ExternalAuthorizationService {
         this.objectMapper = objectMapper;
     }
 
-    @Cacheable(cacheNames = "userCredentials", key = "#dn")
-    public UserCredentials getUserCredentials(String dn) {
+    @Cacheable(cacheNames = "userDetails", key = "#dn")
+    public UserDetails getUserCredentials(String dn) {
         log.warn("########## Authenticating user with DN: {}", dn);
-        return new UserCredentials(dn, Stream.of("Auth1", "Auth2", "Auth3")
-                .map(SimpleGrantedAuthority::new)
-                .toList());
+        String[] auths = new String[] {"Auth1", "Auth2", "Auth3"};
+        UserDetails userDetails = User.builder()
+                .password("not_used")
+                .username(dn)
+                .authorities(auths)
+                .build();
+        log.warn("########## User authorities: {}", userDetails.getAuthorities());
+        return userDetails;
     }
 
 //    public UserCredentials getUserCredentials(String dn) {

@@ -17,7 +17,7 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager(Caffeine<Object, Object> caffeine) {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setCacheNames(List.of("userCredentials"));
+        cacheManager.setCacheNames(List.of("userDetails"));
         cacheManager.setCaffeine(caffeine);
         return cacheManager;
     }

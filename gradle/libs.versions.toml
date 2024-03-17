@@ -11,21 +11,22 @@ junit = "5.10.2"
 testcontainers = "1.19.7"
 
 [libraries]
-caffeineCache = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
-googleGuava = { module = "com.google.guava:guava", version.ref = "guava" }
-springBootStarterSecurity = { module = "org.springframework.boot:spring-boot-starter-security", version.ref = "springBoot" }
-springBootStarterCache = { module = "org.springframework.boot:spring-boot-starter-cache", version.ref = "springBoot" }
-springBootStarterWeb = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
-springBootStarterTest = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
-springSecurityOauth2Jose = { module = "org.springframework.security:spring-security-oauth2-jose", version.ref = "spring" }
-kafkaStreams = { module = "org.apache.kafka:kafka-streams", version.ref = "kafkaVersion" }
-springKafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "springKafkaVersion" }
+caffeine-cache = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+google-guava = { module = "com.google.guava:guava", version.ref = "guava" }
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
+kafka-streams = { module = "org.apache.kafka:kafka-streams", version.ref = "kafkaVersion" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
-springdocOpenapiStarterWebmvcUi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springDoc" }
-junitJupiterApi = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
-junitJupiterEngine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
-junitJupiterParams = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
-springBootTestcontainers = { module = "org.springframework.boot:spring-boot-testcontainers", version.ref = "springBoot" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator", version.ref = "springBoot" }
+spring-boot-starter-cache = { module = "org.springframework.boot:spring-boot-starter-cache", version.ref = "springBoot" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security", version.ref = "springBoot" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers", version.ref = "springBoot" }
+spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "springKafkaVersion" }
+spring-security-oauth2-jose = { module = "org.springframework.security:spring-security-oauth2-jose", version.ref = "spring" }
+springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springDoc" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
-testcontainersJunitJupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
-testcontainersRedpanda = { module = "org.testcontainers:redpanda", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-redpanda = { module = "org.testcontainers:redpanda", version.ref = "testcontainers" }

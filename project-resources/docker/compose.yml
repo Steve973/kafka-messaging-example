@@ -1,0 +1,58 @@
+version: "3.7"
+
+services:
+  redpanda_broker:
+    image: docker.io/redpandadata/redpanda:v23.3.8
+    container_name: broker
+    networks:
+      - kafka_messaging_example
+    volumes:
+      - broker:/var/lib/redpanda/data:rw
+    cap_add:
+      - SYS_NICE
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://broker:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://broker:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr broker:33145
+      - --advertise-rpc-addr broker:33145
+      - --mode dev-container
+      - --smp 1
+      - --default-log-level=warn
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  example_app:
+    image: docker.io/library/kafka-messaging-example:latest
+    container_name: example_app
+    ports:
+      - "8080:8080"
+    networks:
+      - kafka_messaging_example
+    environment:
+      - THC_PATH=/actuator/health
+      - THC_PORT=8080
+    healthcheck:
+      test: [ "CMD", "/cnb/process/health-check" ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      redpanda_broker:
+        condition: service_healthy
+
+networks:
+  kafka_messaging_example:
+    driver: bridge
+
+volumes:
+  broker: null

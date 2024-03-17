@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.errors.LogAndFailExceptionHandler;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -107,9 +108,13 @@ public class QueryService {
                 .filter((key, value) -> value.getId().equals(queryId))
                 .foreach((key, value) -> responses.addAll(value.getResults()));
         CountDownLatch latch = new CountDownLatch(1);
+        ClassLoader currentClassloader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(LogAndFailExceptionHandler.class.getClassLoader());
         try (KafkaStreams streams = new KafkaStreams(streamsBuilder.build(), streamsProperties)) {
             streams.start();
             latch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } finally {
+            Thread.currentThread().setContextClassLoader(currentClassloader);
         }
         return responses;
     }
@@ -119,7 +124,7 @@ public class QueryService {
             containerFactory = "simpleQueryKafkaListenerContainerFactory",
             autoStartup = "true")
     public void listenForQueries(SimpleQuery simpleQuery) {
-        if (queryIdCache.getIfPresent(simpleQuery.getId()) != null) {
+        if (queryIdCache.getIfPresent(simpleQuery.getId()) == null) {
             SimpleResponse response = SimpleResponse.builder()
                     .id(simpleQuery.getId())
                     .results(processQuery(simpleQuery.getQuery()))
