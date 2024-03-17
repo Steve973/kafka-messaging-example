@@ -115,7 +115,7 @@ public class QueryService {
     }
 
     @KafkaListener(topics = QUERY_TOPIC_NAME,
-            groupId = "queryConsumer + #{T(java.util.UUID).randomUUID().toString()}",
+            groupId = "query_consumer_ + #{T(java.util.UUID).randomUUID().toString()}",
             containerFactory = "simpleQueryKafkaListenerContainerFactory",
             autoStartup = "true")
     public void listenForQueries(SimpleQuery simpleQuery) {
