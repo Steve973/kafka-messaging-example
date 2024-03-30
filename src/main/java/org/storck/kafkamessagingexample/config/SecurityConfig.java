@@ -6,17 +6,19 @@ import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.client.RestTemplate;
+import org.storck.kafkamessagingexample.auth.ClientCertificateAuthenticationFilter;
+import org.storck.kafkamessagingexample.auth.ClientCertificateAuthenticationProvider;
 import org.storck.kafkamessagingexample.auth.ExternalAuthorizationService;
 import org.storck.kafkamessagingexample.auth.UserDetailsServiceImpl;
-
-import java.security.cert.X509Certificate;
 
 @Configuration
 @EnableMethodSecurity
@@ -40,21 +42,27 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public UserDetailsServiceImpl userDetailsService(RestTemplate restTemplate, ObjectMapper objectMapper) {
         return new UserDetailsServiceImpl(externalAuthorizationService(restTemplate, objectMapper));
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, RestTemplate restTemplate, ObjectMapper objectMapper) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http, UserDetailsServiceImpl userDetailsService, AuthenticationManager authenticationManager)
+            throws Exception {
         http
-                .x509(httpSecurityX509Configurer ->
-                        httpSecurityX509Configurer.x509PrincipalExtractor(X509Certificate::getSubjectX500Principal)
-                                .userDetailsService(userDetailsService(restTemplate, objectMapper)))
-                .sessionManagement(httpSecuritySessionManagementConfigurer ->
-                        httpSecuritySessionManagementConfigurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry.anyRequest().authenticated())
-                .csrf(AbstractHttpConfigurer::disable);
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(httpSecuritySessionManagementConfigurer ->
+                        httpSecuritySessionManagementConfigurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(new ClientCertificateAuthenticationProvider(userDetailsService))
+                .addFilterBefore(new ClientCertificateAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

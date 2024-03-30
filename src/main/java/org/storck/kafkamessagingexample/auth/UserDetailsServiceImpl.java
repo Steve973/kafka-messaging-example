@@ -17,6 +17,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         log.warn("########## User Details Service -- loading user by username: {}", username);
-        return externalAuthorizationService.getUserCredentials(username);
+        return externalAuthorizationService.getUserByUsername(username);
+    }
+
+    public UserDetails loadUserByCertInfo(String userDn, String issuerDn) throws UsernameNotFoundException {
+        log.warn("########## User Details Service -- loading user by userDn: {} and issuerDn: {}", userDn, issuerDn);
+        return externalAuthorizationService.getUserByCertInfo(userDn, issuerDn);
     }
 }

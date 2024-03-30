@@ -19,9 +19,7 @@ spring:
             type: "PKCS12"
 server:
   ssl:
-    bundle: "server-ssl-bundle"
-    client-auth: need
-    enabled: true
+    enabled: false
 logging:
   level:
     org.apache.kafka: error
