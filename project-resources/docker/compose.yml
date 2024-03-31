@@ -1,21 +1,35 @@
-
 services:
-  proxy_traefik:
+  traefik:
     image: traefik:v2.11
+    container_name: proxy_traefik
+    networks:
+      - kafka_messaging_example
     ports:
-      - "80:80"
-      - "443:443"
+      - "8443:8080"
+      - "8888:8888"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./traefik.yml:/etc/traefik/traefik.yml
-      - ./certs:/certs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /home/steve/IdeaProjects/kafka-messaging-example/project-resources/traefik/traefik-dynamic-config.yml:/etc/traefik/dynamic/traefik-dynamic-config.yml:ro
+      - /home/steve/Downloads/server.crt:/certs/cert.pem:ro
+      - /home/steve/Downloads/server.key:/certs/key.pem:ro
+      - /home/steve/Downloads/ca.crt:/certs/ca.pem:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=HostRegexp(`{host:.+}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.entrypoints=dashboard"
+      - "traefik.http.routers.dashboard.service=api@internal"
     command:
-      - "--providers.docker"
-      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
       - "--entrypoints.websecure.address=:8443"
+      - "--entrypoints.dashboard.address=:8888"
+      - "--providers.docker.exposedByDefault=false"
+      - "--providers.docker.network=kafka_messaging_example"
+      - "--providers.file.directory=/etc/traefik/dynamic"
 
   redpanda_broker:
-    image: docker.io/redpandadata/redpanda:v23.3.8
+    image: redpandadata/redpanda:v23.3.8
     container_name: broker
     networks:
       - kafka_messaging_example
@@ -23,6 +37,8 @@ services:
       - broker:/var/lib/redpanda/data:rw
     cap_add:
       - SYS_NICE
+    labels:
+      - "traefik.enable=false"
     command:
       - redpanda
       - start
@@ -46,8 +62,6 @@ services:
   example_app:
     image: docker.io/library/kafka-messaging-example:latest
     container_name: example_app
-    ports:
-      - "8080:8080"
     networks:
       - kafka_messaging_example
     environment:
@@ -55,13 +69,14 @@ services:
       - THC_PORT=8080
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.example_app.rule=Host(`whoami.example.com`)"
-      - "traefik.http.routers.example_app.entrypoints=websecure"
-      - "traefik.http.routers.example_app.tls=true"
-      - "traefik.http.routers.example_app.tls.options=default"
-      - "traefik.http.middlewares.example-app-passtlsclientcert.passtlsclientcert.pem=true"
-      - "traefik.htto.routers.example_app.middlewares.example-app-passtlsclientcert@docker"
-      - "traefik.http.services.example_app.loadbalancer.server.port=8080"
+      - "traefik.http.routers.example-app.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.example-app.entrypoints=websecure"
+      - "traefik.http.routers.example-app.tls=true"
+      - "traefik.http.routers.example-app.tls.options=default"
+      - "traefik.http.routers.example-app.service=example-app"
+      - "traefik.http.middlewares.example-app-pass-pem.passtlsclientcert.pem=true"
+      - "traefik.http.routers.example-app.middlewares.example-app-pass-pem@docker"
+      - "traefik.http.services.example-app.loadbalancer.server.port=8080"
     healthcheck:
       test: [ "CMD", "/cnb/process/health-check" ]
       interval: 30s
@@ -74,6 +89,7 @@ services:
 
 networks:
   kafka_messaging_example:
+    name: kafka_messaging_example
     driver: bridge
 
 volumes:

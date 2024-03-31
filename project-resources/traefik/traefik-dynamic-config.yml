@@ -2,13 +2,13 @@ tls:
   stores:
     default:
       defaultCertificate:
-        certFile: /certs/server.crt
-        keyFile: /certs/server.key
+        certFile: /certs/cert.pem
+        keyFile: /certs/key.pem
   options:
     default:
       minVersion: VersionTLS12
       sniStrict: false
       clientAuth:
         caFiles:
-          - certs/trust.crt
+          - certs/ca.pem
         clientAuthType: RequireAndVerifyClientCert

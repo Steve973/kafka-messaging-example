@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.storck.kafkamessagingexample.auth.ClientCertificateAuthenticationFilter;
 import org.storck.kafkamessagingexample.auth.ClientCertificateAuthenticationProvider;
@@ -57,7 +58,9 @@ public class SecurityConfig {
             throws Exception {
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
-                        authorizationManagerRequestMatcherRegistry.anyRequest().authenticated())
+                        authorizationManagerRequestMatcherRegistry
+                                .requestMatchers(AntPathRequestMatcher.antMatcher("/actuator/health")).permitAll()
+                                .anyRequest().authenticated())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(httpSecuritySessionManagementConfigurer ->
                         httpSecuritySessionManagementConfigurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

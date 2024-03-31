@@ -91,61 +91,74 @@ val createStores by tasks.registering {
         project.exec {
             isIgnoreExitValue = true
             commandLine(
-                "keytool", "-genkeypair",
-                "-alias", "myalias",
-                "-keyalg", "RSA",
-                "-keysize", "4096",
-                "-storetype", "PKCS12",
-                "-keystore", "$certDir/keystore.p12",
-                "-validity", "3650",
-                "-storepass", "changeme",
-                "-keypass", "changeme",
-                "-dname", "CN=localhost, OU=Test, O=Test, L=Test, ST=Test, C=GB",
-                "-noprompt"
+                "openssl", "req",
+                "-new",
+                "-newkey", "rsa:4096",
+                "-days", "3650",
+                "-nodes",
+                "-x509",
+                "-subj", "/C=US/ST=Test/O=Test/CN=myCA",
+                "-keyout", "$certDir/ca.key",
+                "-out", "$certDir/ca.crt"
             )
         }
 
         project.exec {
             isIgnoreExitValue = true
             commandLine(
-                "keytool", "-exportcert",
-                "-alias", "myalias",
-                "-keystore", "$certDir/keystore.p12",
-                "-storepass", "changeme",
-                "-file", "$certDir/mycert.cer",
-                "-noprompt"
+                "openssl", "genrsa",
+                "-out", "$certDir/server.key",
+                "4096"
             )
         }
 
         project.exec {
             isIgnoreExitValue = true
             commandLine(
-                "keytool", "-importcert",
-                "-file", "$certDir/mycert.cer",
-                "-alias", "myTrustAlias",
-                "-keystore", "$certDir/truststore.p12",
-                "-storepass", "changeme",
-                "-noprompt"
+                "openssl", "req",
+                "-new",
+                "-key", "$certDir/server.key",
+                "-out", "$certDir/server.csr",
+                "-subj", "/C=US/ST=Test/O=Test/CN=*"
             )
         }
 
-        listOf("keystore.p12", "truststore.p12").forEach { storeName ->
-            val defaultTargetFile = File("$defaultTargetDir/$storeName")
-            Files.copy(
-                Paths.get("$certDir/$storeName"),
-                defaultTargetFile.toPath(),
-                StandardCopyOption.REPLACE_EXISTING
+        project.exec {
+            isIgnoreExitValue = true
+            commandLine(
+                "openssl", "x509", "-req", "-sha256", "-days", "3650",
+                "-in", "$certDir/server.csr",
+                "-CA", "$certDir/ca.crt",
+                "-CAkey", "$certDir/ca.key",
+                "-set_serial", "01",
+                "-out", "$certDir/server.crt"
+            )
+        }
+
+        project.exec {
+            isIgnoreExitValue = true
+            commandLine(
+                "openssl", "pkcs12",
+                "-export",
+                "-in", "$certDir/server.crt",
+                "-inkey", "$certDir/server.key",
+                "-name", "server",
+                "-out", "$certDir/keystore.p12",
+                "-passout", "pass:changeme",
+                "-certfile", "$certDir/ca.crt"
             )
         }
 
         project.properties["certTargetDir"]?.toString()?.let { targetDir ->
-            listOf("keystore.p12", "truststore.p12").forEach { storeName ->
-                val customTargetFile = File("$targetDir/$storeName")
-                Files.copy(
-                    Paths.get("$certDir/$storeName"),
-                    customTargetFile.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING
-                )
+            Files.newDirectoryStream(Paths.get(certDir)).use { dirStream ->
+                dirStream.forEach { filePath ->
+                    val customTargetFile = File("$targetDir/${filePath.fileName}")
+                    Files.copy(
+                        filePath,
+                        customTargetFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING
+                    )
+                }
             }
         }
     }
