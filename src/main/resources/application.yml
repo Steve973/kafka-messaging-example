@@ -8,21 +8,44 @@ spring:
       jks:
         server-ssl-bundle:
           key:
-            alias: "myalias"
+            alias: "server"
           keystore:
-            location: "classpath:keystore.p12"
+            location: "/certs/keystore.p12"
             password: "changeme"
             type: "PKCS12"
           truststore:
-            location: "classpath:truststore.p12"
+            location: "/certs/truststore.p12"
             password: "changeme"
             type: "PKCS12"
 server:
   ssl:
     enabled: false
+  servlet:
+    context-path: /example
+  port: 8080
 logging:
   level:
-    org.apache.kafka: error
-    org.springframework.security: debug
+    org:
+      apache:
+        catalina:
+          core:
+            ContainerBase.[Tomcat].[localhost]: info
+        kafka: error
+      springframework:
+        security: debug
+        web:
+          servlet:
+            DispatcherServlet: debug
 springdoc:
   show-actuator: true
+  swagger-ui:
+    csrf:
+      enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - loggers

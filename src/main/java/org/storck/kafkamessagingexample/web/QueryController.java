@@ -2,10 +2,8 @@ package org.storck.kafkamessagingexample.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +21,6 @@ public class QueryController {
 
     private final QueryService queryService;
 
-    @Autowired
     public QueryController(QueryService queryService) {
         this.queryService = queryService;
     }

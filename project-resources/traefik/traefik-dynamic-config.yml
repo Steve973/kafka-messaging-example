@@ -10,5 +10,8 @@ tls:
       sniStrict: false
       clientAuth:
         caFiles:
-          - certs/ca.pem
+          - /certs/ca.pem
         clientAuthType: RequireAndVerifyClientCert
+#        clientAuthType: NoClientCert
+#        clientAuthType: RequestClientCert
+#        clientAuthType: RequireAnyClientCert

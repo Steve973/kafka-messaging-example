@@ -3,6 +3,7 @@ import org.springframework.boot.gradle.tasks.bundling.BootJar
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.PosixFilePermission
 
 plugins {
     java
@@ -97,7 +98,7 @@ val createStores by tasks.registering {
                 "-days", "3650",
                 "-nodes",
                 "-x509",
-                "-subj", "/C=US/ST=Test/O=Test/CN=myCA",
+                "-subj", "/C=US/ST=Test/O=Test/OU=Test/CN=localhost",
                 "-keyout", "$certDir/ca.key",
                 "-out", "$certDir/ca.crt"
             )
@@ -107,8 +108,7 @@ val createStores by tasks.registering {
             isIgnoreExitValue = true
             commandLine(
                 "openssl", "genrsa",
-                "-out", "$certDir/server.key",
-                "4096"
+                "-out", "$certDir/server.key", "4096"
             )
         }
 
@@ -116,21 +116,27 @@ val createStores by tasks.registering {
             isIgnoreExitValue = true
             commandLine(
                 "openssl", "req",
+                "-verbose",
                 "-new",
+                "-config", "./project-resources/certs/certs.cnf",
                 "-key", "$certDir/server.key",
-                "-out", "$certDir/server.csr",
-                "-subj", "/C=US/ST=Test/O=Test/CN=*"
+                "-out", "$certDir/server.csr"
             )
         }
 
         project.exec {
             isIgnoreExitValue = true
             commandLine(
-                "openssl", "x509", "-req", "-sha256", "-days", "3650",
+                "openssl", "x509",
+                "-req",
+                "-sha384",
+                "-days", "3650",
                 "-in", "$certDir/server.csr",
                 "-CA", "$certDir/ca.crt",
                 "-CAkey", "$certDir/ca.key",
                 "-set_serial", "01",
+                "-extfile", "./project-resources/certs/certs.cnf", // Add this line
+                "-extensions", "v3_req",
                 "-out", "$certDir/server.crt"
             )
         }
@@ -149,6 +155,34 @@ val createStores by tasks.registering {
             )
         }
 
+        project.exec {
+            isIgnoreExitValue = true
+            commandLine(
+                "openssl", "pkcs12",
+                "-export",
+                "-nokeys",
+                "-in", "$certDir/ca.crt",
+                "-out", "$certDir/truststore.p12",
+                "-passout", "pass:changeme",
+            )
+        }
+
+        Files.newDirectoryStream(Paths.get(certDir)).use { dirStream ->
+            dirStream.forEach { filePath ->
+                val customTargetFile = File("$defaultTargetDir/${filePath.fileName}")
+                Files.copy(
+                    filePath,
+                    customTargetFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING)
+                Files.setPosixFilePermissions(customTargetFile.toPath(), setOf(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OWNER_EXECUTE,
+                    PosixFilePermission.GROUP_READ,
+                    PosixFilePermission.OTHERS_READ))
+            }
+        }
+
         project.properties["certTargetDir"]?.toString()?.let { targetDir ->
             Files.newDirectoryStream(Paths.get(certDir)).use { dirStream ->
                 dirStream.forEach { filePath ->
@@ -156,8 +190,13 @@ val createStores by tasks.registering {
                     Files.copy(
                         filePath,
                         customTargetFile.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
+                        StandardCopyOption.REPLACE_EXISTING)
+                    Files.setPosixFilePermissions(customTargetFile.toPath(), setOf(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE,
+                        PosixFilePermission.GROUP_READ,
+                        PosixFilePermission.OTHERS_READ))
                 }
             }
         }
