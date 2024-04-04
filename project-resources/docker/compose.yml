@@ -3,8 +3,7 @@ services:
     image: redpandadata/redpanda:v23.3.10
     container_name: broker
     networks:
-      kafka_messaging_example:
-        ipv4_address: 192.168.100.110
+      - kafka_messaging_example
     volumes:
       - broker:/var/lib/redpanda/data:rw
     cap_add:
@@ -32,35 +31,60 @@ services:
       retries: 5
       start_period: 10s
 
-  example_app:
+  example_app_1:
     image: docker.io/library/kafka-messaging-example:latest
-    container_name: example_app
+    container_name: example_app_1
     networks:
-      kafka_messaging_example:
-        ipv4_address: 192.168.100.120
+      - kafka_messaging_example
     volumes:
       - /home/steve/Downloads/truststore.p12:/certs/truststore.p12:ro
       - /home/steve/Downloads/keystore.p12:/certs/keystore.p12:ro
     environment:
-      - THC_PATH=/example/actuator/health
+      - THC_PATH=/actuator/health
       - THC_PORT=8080
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.example-app-router.rule=Host(`localhost`) || PathPrefix(`/example`)"
-      - "traefik.http.routers.example-app-router.entrypoints=websecure"
-      - "traefik.http.routers.example-app-router.tls=true"
-      - "traefik.http.routers.example-app-router.tls.options=default"
-      - "traefik.http.routers.example-app-router.service=example-app"
-      - "traefik.http.middlewares.cors.headers.accesscontrolalloworiginlist=*"
-      - "traefik.http.middlewares.cors.headers.accesscontrolallowheaders=*"
-      - "traefik.http.middlewares.cors.headers.accesscontrolexposeheaders=*"
-      - "traefik.http.middlewares.cors.headers.accesscontrolallowmethods=*"
-      - "traefik.http.middlewares.cors.headers.accesscontrolallowcredentials=true"
-      - "traefik.http.middlewares.cors.headers.accesscontrolmaxage=100"
-      - "traefik.http.middlewares.cors.headers.addvaryheader=true"
-      - "traefik.http.middlewares.pass-pem.passtlsclientcert.pem=true"
-      - "traefik.http.routers.example-app-router.middlewares=cors,pass-pem"
-      - "traefik.http.services.example-app.loadbalancer.server.port=8080"
+      - "traefik.http.routers.example-app-router1.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.example-app-router1.entrypoints=websecure1"
+      - "traefik.http.routers.example-app-router1.tls=true"
+      - "traefik.http.routers.example-app-router1.tls.options=default"
+      - "traefik.http.routers.example-app-router1.service=example-app1"
+      - "traefik.http.routers.example-app-router1.middlewares=cors,pass-pem"
+      - "traefik.http.middlewares.cors.headers.accessControlAllowOriginList=*"
+      - "traefik.http.middlewares.pass-pem.passTlsClientCert.pem=true"
+      - "traefik.http.services.example-app1.loadbalancer.server.port=8080"
+    healthcheck:
+      test: [ "CMD", "/cnb/process/health-check" ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      redpanda_broker:
+        condition: service_healthy
+
+  example_app_2:
+    image: docker.io/library/kafka-messaging-example:latest
+    container_name: example_app_2
+    networks:
+      - kafka_messaging_example
+    volumes:
+      - /home/steve/Downloads/truststore.p12:/certs/truststore.p12:ro
+      - /home/steve/Downloads/keystore.p12:/certs/keystore.p12:ro
+    environment:
+      - THC_PATH=/actuator/health
+      - THC_PORT=8080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.example-app-router2.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.example-app-router2.entrypoints=websecure2"
+      - "traefik.http.routers.example-app-router2.tls=true"
+      - "traefik.http.routers.example-app-router2.tls.options=default"
+      - "traefik.http.routers.example-app-router2.service=example-app2"
+      - "traefik.http.routers.example-app-router2.middlewares=cors,pass-pem"
+      - "traefik.http.middlewares.cors.headers.accessControlAllowOriginList=*"
+      - "traefik.http.middlewares.pass-pem.passTlsClientCert.pem=true"
+      - "traefik.http.services.example-app2.loadbalancer.server.port=8080"
     healthcheck:
       test: [ "CMD", "/cnb/process/health-check" ]
       interval: 30s
@@ -75,10 +99,10 @@ services:
     image: traefik:v2.11
     container_name: proxy_traefik
     networks:
-      kafka_messaging_example:
-        ipv4_address: 192.168.100.100
+      - kafka_messaging_example
     ports:
       - "8443:8443"
+      - "8444:8444"
       - "8888:8888"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -88,7 +112,7 @@ services:
       - /home/steve/Downloads/ca.crt:/certs/ca.pem:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`localhost`) || (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.rule=HostRegexp(`{host:.+}`) && PathPrefix(`/api`, `/dashboard`)"
       - "traefik.http.routers.dashboard.entrypoints=dashboard"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
@@ -96,36 +120,22 @@ services:
     command:
       - "--accesslog=true"
       - "--log.level=DEBUG"
-      - "--api.insecure=true"
       - "--api.dashboard=true"
-      - "--entrypoints.websecure.address=:8443"
+      - "--entrypoints.websecure1.address=:8443"
+      - "--entrypoints.websecure2.address=:8444"
       - "--entrypoints.dashboard.address=:8888"
       - "--providers.docker.exposedByDefault=false"
       - "--providers.docker.network=kafka_messaging_example"
       - "--providers.file.directory=/etc/traefik/dynamic"
     depends_on:
-      example_app:
+      example_app_1:
         condition: service_healthy
-
-  portainer:
-    image: portainer/portainer-ce
-    restart: always
-    command: -H unix:///var/run/docker.sock
-    networks:
-      kafka_messaging_example:
-        ipv4_address: 192.168.100.130
-    ports:
-      - 9000:9000
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
+      example_app_2:
+        condition: service_healthy
 
 networks:
   kafka_messaging_example:
     name: kafka_messaging_example
-    ipam:
-      config:
-        - subnet: 192.168.100.0/24
 
 volumes:
   broker: null

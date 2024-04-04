@@ -86,6 +86,15 @@ val createStores by tasks.registering {
     val buildDirPath = layout.buildDirectory.get().asFile.absolutePath
     val certDir = "$buildDirPath/generated/certs"
     val defaultTargetDir = "$buildDirPath/resources/main"
+
+    onlyIf {
+        val caCertFile = File("$certDir/ca.crt")
+        val serverCertFile = File("$certDir/server.crt")
+        val keystoreFile = File("$certDir/keystore.p12")
+        val truststoreFile = File("$certDir/truststore.p12")
+        !caCertFile.exists() || !serverCertFile.exists() || !keystoreFile.exists() || !truststoreFile.exists()
+    }
+
     outputs.dirs(certDir, defaultTargetDir)
 
     doLast {

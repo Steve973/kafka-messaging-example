@@ -20,27 +20,14 @@ spring:
 server:
   ssl:
     enabled: false
-  servlet:
-    context-path: /example
   port: 8080
 logging:
   level:
     org:
       apache:
-        catalina:
-          core:
-            ContainerBase.[Tomcat].[localhost]: info
         kafka: error
-      springframework:
-        security: debug
-        web:
-          servlet:
-            DispatcherServlet: debug
 springdoc:
   show-actuator: true
-  swagger-ui:
-    csrf:
-      enabled: false
 management:
   endpoints:
     web:
